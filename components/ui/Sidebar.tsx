@@ -4,6 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { Package2, Bell, Home, Bot } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@radix-ui/react-accordion";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
 import { Button } from "./button";
 
 export const Sidebar = () => {
@@ -32,14 +42,30 @@ export const Sidebar = () => {
                 <Home className="h-4 w-4" />
                 Dashboard
               </Link>
-              <Link
-                href="/ai-diagnose"
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 ${pathname === '/ai-diagnose' ? 'bg-muted text-primary' : 'text-muted-foreground' }
-                  transition-all hover:text-primary`}
-              >
-                <Bot className="h-4 w-4" />
-                AI Dianosis
-              </Link>
+              <Accordion type="single" collapsible>
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger className="flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary"><Bot className="h-5 w-5"/> AI Diagnosis</AccordionTrigger>
+                    <AccordionContent>
+                      <ul>
+                        <li className="hover:text-primary hover:bg-muted">
+                          <Link
+                          className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground  transition-all hover:text-primary"
+                          href="/view-diagnosis">
+                            View Diagnosis
+                          </Link>
+                        </li>
+
+                        <li className="hover:text-primary hover:bg-muted">
+                          <Link 
+                          className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary "
+                          href="/ai-diagnose">
+                              Upload image for Diagnose
+                          </Link>
+                        </li>
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+              </Accordion>
             </nav>
           </div>
         </div>
