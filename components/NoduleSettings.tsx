@@ -1,11 +1,16 @@
 import { useState,useEffect } from "react";
+import { DialogFooter } from "./ui/dialog";
+import { Button } from "./ui/button";
+import { DialogClose } from "@radix-ui/react-dialog";
+import {BoundingBox} from "@/app/interface/BoundingBox";
 
-function NoduleSettings({canvas}) {
+function Settings({canvas, addNodule}) {
      const [selectedObject, setSelectedObject] = useState<any>(null);
      const [width, setWidth] = useState(0);
      const [height, setHeight] = useState(0);
      const [coords, setCoords] = useState([0,0]);
      const [color, setColor] = useState("");
+     const [exampleOutput, setExampleOutput] = useState("");
 
      useEffect(() => {
           if(canvas){
@@ -39,9 +44,16 @@ function NoduleSettings({canvas}) {
 
           setWidth(Math.round(object.width * object.scaleX));
           setHeight(Math.round(object.height * object.scaleY));
-          setCoords([object.oCoords["ml"].x,object.oCoords["ml"].y]);
+          setCoords([object.oCoords["tl"].x,object.oCoords["tl"].y]);
+          console.log(object.oCoords);
           setColor(object.stroke);
      }
+
+     
+     // x={(xCenter - width / 2) * 416} => xCenter = x/416 + width /2
+     // y={(yCenter - height / 2) * 416} => yCenter = (y + height /2)/416
+     // width={box.width * 416} => box width: width /416
+     // height={box.height * 416} => box height: height / 416
 
      const clearSettings = () => {
           setWidth(0);
@@ -57,7 +69,7 @@ function NoduleSettings({canvas}) {
 
           if(selectedObject && selectedObject.type === "rect" && intValue >=0){
                selectedObject.set({height: intValue/selectedObject.scaleY});
-               canvas.renderAll();
+               canvas.requestRenderAll();
           }
      }
 
@@ -69,15 +81,21 @@ function NoduleSettings({canvas}) {
 
           if(selectedObject && selectedObject.type === "rect" && intValue >=0){
                selectedObject.set({width: intValue / selectedObject.scaleX});
-               canvas.renderAll();
+               canvas.requestRenderAll();
           }
      }
 
      const handleDeleteObject = () => {
           canvas.remove(selectedObject);
-          
-          canvas.renderAll();
+          selectedObject.dispose();
+          canvas.requestRenderAll();
      }
+
+     const handleAddNodule = (classId: number, xCenter: number, yCenter: number, width: number, height: number) => {
+          var newNodule: BoundingBox = {classId: classId, xCenter: xCenter,yCenter: yCenter, width: width, height: height}
+          addNodule(newNodule);
+     }
+
 
      return (
           <>
@@ -88,10 +106,16 @@ function NoduleSettings({canvas}) {
                     <input type="number" readOnly value={coords[0]} />
                     <input type="number" readOnly value={coords[1]} />
                     <button type="button" onClick={handleDeleteObject}>Delete</button>
+                    {/* <p>{"0 " + (((coords[0]) + (width/2))/416) + " " + ((coords[1] + (height /2))/416) + " " + (width/416) + " " + (height/416)}</p> */}
+                    <DialogFooter>
+                         <DialogClose asChild>
+                              <Button type="submit" onClick={() => handleAddNodule(0, (((coords[0]) + (width/2))/416), ((coords[1] + (height /2))/416), (width/416), (height/416))}>Add Nodule</Button>
+                         </DialogClose>
+                    </DialogFooter>
                </div>
           )}
           </>
      )
 }
 
-export default NoduleSettings;
+export default Settings;

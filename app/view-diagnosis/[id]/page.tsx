@@ -8,17 +8,9 @@ import { useParams } from "next/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Dialog,DialogContent,DialogTitle,DialogTrigger,DialogDescription, DialogHeader, DialogFooter  } from "@/components/ui/dialog";
-import {AddNodule} from "@/components/AddNodule";
 import AddNoduleSection from "@/components/AddNoduleSection";
+import { BoundingBox } from "@/app/interface/BoundingBox";
 
-
-interface BoundingBox{
-     classId: number;
-     xCenter: number;
-     yCenter: number;
-     width: number;
-     height: number;
-}
 
 
 export default function DiagnosisDetailPage(){
@@ -47,29 +39,26 @@ export default function DiagnosisDetailPage(){
                     const data = await res.json();
                     setDiagnosisDetail(data);
                     
+
+                    
                } catch(error) {
                     console.error("Error fetching data", error);
                }
           }
 
-
-
-          //   Fetch labels
-          async function fetchBoundingBoxes(){
-               const res = await fetch(`/ct_images/labels/val/${diagnosisDetail?.filename}.txt`)
-               const data = await res.text();
-               const boxes = data.trim().split('\n').map((line) => {
-                    const [classId, xCenter, yCenter, width, height] = line.split(' ').map(Number);
-                    return {classId, xCenter, yCenter, width,height};
-               });
-
-               setBoundingBoxes(boxes);
-          };
-
           fetchDiagnosisDetail();
-          fetchBoundingBoxes();
 
-     },[diagnosisDetail])
+     },[id])
+
+     useEffect(() => {
+          if (diagnosisDetail && diagnosisDetail.boxes) {
+              const boxes = diagnosisDetail.boxes.map((line) => {
+                  const [classId, xCenter, yCenter, width, height] = line.split(' ').map(Number);
+                  return { classId, xCenter, yCenter, width, height };
+              });
+              setBoundingBoxes(boxes.filter(box => box.xCenter !== undefined && box.yCenter !== undefined));
+          }
+      }, [diagnosisDetail]);
 
 
 
@@ -77,12 +66,16 @@ export default function DiagnosisDetailPage(){
      const toggleEdit = () => {
           setEditable(!editable)
      }
-     
+
+
+     const addNodule = (newBoundingBox: BoundingBox) => {
+          setBoundingBoxes(prevBoundingBoxes => [...prevBoundingBoxes, newBoundingBox]);
+     }
 
 
      return (
           <div>
-              { diagnosisDetail ? (<> 
+              { diagnosisDetail && boundingBoxes.length > 0 ? (<> 
                     <div className="flex flex-row">
                          <h1 className="text-lg font-semibold md:text-2xl basis-2/6">Diagnosis Detail No.{diagnosisDetail?.id} </h1> 
                          <div className="basis-3/6"></div> 
@@ -110,7 +103,9 @@ export default function DiagnosisDetailPage(){
                                         >
                                             
                                              {
-                                                  boundingBoxes.map((box, index) => (
+                                                  boundingBoxes
+                                                  .filter(box => box && box.xCenter !== undefined && box.yCenter !== undefined)
+                                                  .map((box, index) => (
                                                        <rect 
                                                        key={index}
                                                        x={(box.xCenter - box.width / 2) * 416}
@@ -161,9 +156,8 @@ export default function DiagnosisDetailPage(){
                                                                       </DialogDescription>
                                                                  </DialogHeader>
                                                                  <div>
-                                                                      <AddNoduleSection/>
+                                                                      <AddNoduleSection addNodule={addNodule}  />
                                                                  </div>
-                                                                 <DialogFooter><Button>Add Nodule</Button></DialogFooter>
                                                             </DialogContent>
                                                         
                                                        </Dialog>
@@ -171,7 +165,9 @@ export default function DiagnosisDetailPage(){
                                                   
                                                   <div>
                                                        <ScrollArea className="h-[250px] w-[50]">
-                                                            {boundingBoxes.map((box,index) => (
+                                                            {boundingBoxes
+                                                            .filter(box => box && box.xCenter !== undefined && box.yCenter !== undefined)
+                                                            .map((box,index) => (
                                                                  <Card className="mt-2 mb-2" key={index}>
                                                                       <CardHeader>Nodule {index}</CardHeader>
                                                                       <CardContent>

@@ -3,7 +3,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as fabric from 'fabric'
 import NoduleSettings from "./NoduleSettings";
-const AddNoduleSection = () => {
+import {BoundingBox} from "@/app/interfaces/BoundingBox";
+import { Button } from "./ui/button";
+
+const AddNoduleSection = (props: any) => {
 
      const canvasRef = useRef(null);
      const[canvas,setCanvas] = useState<fabric.Canvas | null>(null);
@@ -29,7 +32,7 @@ const AddNoduleSection = () => {
             })
       
             initCanvas.isDrawingMode = true;
-            initCanvas.renderAll();
+            initCanvas.requestRenderAll();
       
             setCanvas(initCanvas);
             
@@ -56,7 +59,7 @@ const AddNoduleSection = () => {
                     height: pointer.y - origY,
                     angle: 0,
                     stroke: 'red',
-                    strokeWidth: 5,
+                    strokeWidth: 2,
                     fill: "transparent",
                     transparentCorners: false
                     })
@@ -89,24 +92,30 @@ const AddNoduleSection = () => {
                isDown = false;
                if (isDrawingMode && rectRef.current) {
                     rectRef.current.set({ selectable: true });
-                    canvas.renderAll();
+                    canvas.requestRenderAll();
                 }
           });
-          canvas?.on("mouse:dblclick", () => {
+
+
+          const toggleDrawing =()=> {
                isDrawingMode = !isDrawingMode;
                if(canvas){
                     canvas.isDrawingMode = isDrawingMode;
                     canvas.selection = !isDrawingMode;
-                    canvas.renderAll();
+                    canvas.requestRenderAll();
                }
-          })
+          }
+
+
 
   return (
     <div>
-          <div className="grid grid-cols-12">
+          <div>
+
+               <Button onClick={toggleDrawing}>Toggle Edit</Button>
                <canvas id="canvas" ref={canvasRef}/>
-               <NoduleSettings canvas={canvas} />
-               
+               <br/>
+               <NoduleSettings canvas={canvas} addNodule={props.addNodule}/>
           </div>
     </div>
   )
