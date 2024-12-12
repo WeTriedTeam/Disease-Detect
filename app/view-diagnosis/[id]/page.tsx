@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog,DialogContent,DialogTitle,DialogTrigger,DialogDescription, DialogHeader, DialogFooter  } from "@/components/ui/dialog";
 import AddNoduleSection from "@/components/AddNoduleSection";
 import { BoundingBox } from "@/app/interface/BoundingBox";
+import {HexColorPicker} from "react-colorful";
+
 
 
 
@@ -20,9 +22,6 @@ export default function DiagnosisDetailPage(){
      const [diagnosisDetail, setDiagnosisDetail] = useState(null);
      const [boundingBoxes, setBoundingBoxes] = useState<BoundingBox[]>([]);
      const [editable, setEditable] = useState(false);
-
-     //   Draw
-     const [isDialogOpen, setIsDialogOpen] = useState(false);
      
 
 
@@ -72,13 +71,15 @@ export default function DiagnosisDetailPage(){
           setBoundingBoxes(prevBoundingBoxes => [...prevBoundingBoxes, newBoundingBox]);
      }
 
+     
+
 
      return (
           <div>
               { diagnosisDetail && boundingBoxes.length > 0 ? (<> 
                     <div className="flex flex-row">
-                         <h1 className="text-lg font-semibold md:text-2xl basis-2/6">Diagnosis Detail No.{diagnosisDetail?.id} </h1> 
-                         <div className="basis-3/6"></div> 
+                         <h1 className="text-lg font-semibold md:text-2xl basis-3/6">Diagnosis Detail No.{diagnosisDetail?.id} - {diagnosisDetail.patientName} </h1> 
+                         <div className="basis-2/6"></div> 
                          <Button className="basis-1/6 justify-self-end" onClick={toggleEdit}>{editable ? 'Save' : 'Edit' }</Button>
                     </div>
                     
@@ -88,9 +89,10 @@ export default function DiagnosisDetailPage(){
                               <div className="mt-8 mb-8 grid grid-cols-2 grid-rows-1 gap-11 divide-x">
 
                                    <div style={{position: 'relative', display: 'inline-block'}} id="Diagnosis-Image">
-                                        <img id="ct-img" style={{display: 'block', maxWidth: '100%'}} src={`${diagnosisDetail.imgRef}${diagnosisDetail.filename}.jpg`} alt="CT Scan Image" />
+                                        {/* <img id="ct-img" style={{display: 'block', maxWidth: '100%'}} src={`${diagnosisDetail.imgRef}${diagnosisDetail.filename}.jpg`} alt="CT Scan Image" /> */}
+                                        <AddNoduleSection listOfBoxes={boundingBoxes} addNodule={addNodule}  imgPath={`${diagnosisDetail.imgRef}${diagnosisDetail.filename}.jpg`}/>
 
-                                        <svg style={{
+                                        {/* <svg style={{
                                              position: 'absolute',
                                              top:0,
                                              left:0,
@@ -118,7 +120,7 @@ export default function DiagnosisDetailPage(){
                                                        />
                                                   ))
                                              }
-                                        </svg>
+                                        </svg> */}
                                    </div>
 
                                    <Card>
@@ -129,26 +131,17 @@ export default function DiagnosisDetailPage(){
                                         <CardContent>
                                         <form>
                                              <div className="grid w-full items-center gap-4">
-                                                  <div className="flex flex-col space-y-1.5">
+                                                  {/*DELETE: When done */}
+                                                  {/* <div className="flex flex-col space-y-1.5">
                                                        <Label htmlFor="patientName">Patient Name</Label>
                                                        <Input readOnly id="patientName" value={`${diagnosisDetail.patientName}`}  />
-                                                  </div>
-
-                                                  <div className="flex flex-col space-y-1.5">
-                                                       <Label htmlFor="dateOfDiagnosis">Date of Dianosis</Label>
-                                                       <Input readOnly id="dateOfDiagnosis" value={`${diagnosisDetail.date}`}/>
-                                                  </div>
-
-                                                  <div className="flex flex-col space-y-1.5">
-                                                       <Label htmlFor="diagnosisNote">Diagnosis Note</Label>
-                                                       <Input id="diagnosisNote" value={`${diagnosisDetail.diagnosisNote}`}/>
-                                                  </div>
+                                                  </div> */}
 
                                                   <div>
-                                                       <h4>Nodules</h4>
-                                                       <Dialog>
-                                                            <DialogTrigger asChild><Button onClick={() => setIsDialogOpen(!isDialogOpen)} variant="outline">Add Nodule</Button></DialogTrigger>
-                                                            <DialogContent>
+                                                       {/*Delete: Will delete later*/}
+                                                       {/* <Dialog>
+                                                            <DialogTrigger disabled={!editable} asChild><Button onClick={() => setIsDialogOpen(!isDialogOpen)} variant="outline">Add Nodule</Button></DialogTrigger>
+                                                            <DialogContent className="max-w-fit min-w-96">
                                                                  <DialogHeader>
                                                                       <DialogTitle>Add New Nodule</DialogTitle>
                                                                       <DialogDescription>
@@ -156,11 +149,11 @@ export default function DiagnosisDetailPage(){
                                                                       </DialogDescription>
                                                                  </DialogHeader>
                                                                  <div>
-                                                                      <AddNoduleSection addNodule={addNodule}  />
+                                                                      
                                                                  </div>
                                                             </DialogContent>
                                                         
-                                                       </Dialog>
+                                                       </Dialog> */}
                                                   </div>
                                                   
                                                   <div>
@@ -170,7 +163,9 @@ export default function DiagnosisDetailPage(){
                                                             .map((box,index) => (
                                                                  <Card className="mt-2 mb-2" key={index}>
                                                                       <CardHeader>Nodule {index}</CardHeader>
+                                                                      
                                                                       <CardContent>
+                                                                           <HexColorPicker style={{height:"130px"}}/>
                                                                            <label htmlFor="">X:</label>
                                                                            <Input className="mb-2" value={`${(box.xCenter - box.width / 2) * 416}`}></Input>
                                                                            <label htmlFor="">Y:</label>

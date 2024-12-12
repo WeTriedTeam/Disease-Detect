@@ -1,4 +1,5 @@
 export interface BoundingBox{
+     boxId: number;
      classId: number;
      xCenter: number;
      yCenter: number;
