@@ -27,7 +27,7 @@ const AddNoduleSection = (props: any) => {
               height:416,
             });
       
-            fabric.FabricImage.fromURL("/ct_images/images/val/1_jpg.rf.4a59a63d0a7339d280dd18ef3c2e675a.jpg").then(function(img) {
+            fabric.FabricImage.fromURL(`${'http://127.0.0.1:8000/images/'+props.diagnosisDetail.photo_path.replace("uploads\\",'')}`).then(function(img) {
               initCanvas.backgroundImage = img;
             })
       

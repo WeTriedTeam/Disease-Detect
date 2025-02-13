@@ -18,16 +18,14 @@ const records = [     {id: "0", patientName: 'John Doe', diagnosisNote: 'Lung Pr
           {id: "2", patientName: 'Go Doe', diagnosisNote: 'Lung Problem', date:'13/10/2024', imgRef: "/ct_images/images/val/", filename: '3_jpg.rf.d2932cce7e88c2675e300ececf9f1b82', boxes: ["0 0.43509615384615385 0.43028846153846156 0.04447115384615385 0.04326923076923077"]}];
 
 //   GET /api/diagnosis/[id]
-export async function GET(request: Request, { params }: { params: { id: string } }){
+export async function fetchPatientDiagnosis({ params }: { params: { id: string} }) {
      const {id} = params;
 
-     
-     const record = records.find(record => record.id === id);
+     const record = await fetch('http://127.0.0.1:8000/view-diagnosis/'+id);
 
      if(!record){
           return NextResponse.json({error: 'Record not found!'});
      }
 
-     return NextResponse.json(record);
-     
+     return record.json();
 }

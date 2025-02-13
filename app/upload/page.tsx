@@ -22,25 +22,22 @@ export default function UploadImage() {
 
     setLoading(true);
     const formData = new FormData();
-    formData.append('image', image);
+    formData.append('file', image);
 
     //  API call to upload image for processing
     try {
-      const res = await fetch('', {
+      const res = await fetch('http://127.0.0.1:8000/upload', {
         method: 'POST',
         body: formData,
       });
 
-      if (res.ok) {
-        const blob = await res.blob();
-        const imageUrl = URL.createObjectURL(blob);
-        setProcessedImage(imageUrl);
-      } else {
-        console.error('Error uploading image');
+      if (!res.ok) {
+          throw new Error(`Error: ${res.status}`)
       }
     } catch (error) {
       console.error('Error:', error);
     } finally {
+      alert("Uploaded Successfully!")
       setLoading(false);
     }
   };
