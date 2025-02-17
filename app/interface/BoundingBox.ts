@@ -8,4 +8,7 @@ export interface BoundingBox{
      yCenter: number;
      width: number;
      height: number;
+     isTemp: boolean;
+     severity: string;
+     notes: string;
 }
