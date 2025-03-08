@@ -13,6 +13,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { BoundingBox } from "@/app/interface/BoundingBox";
 import {fetchPatientDiagnosis} from "@/app/api/diagnosis/[id]/route";
 import { Diagnosis } from "@/app/interface/Diagnosis";
+import { Nodule } from "@/app/interface/Nodule";
 
 
 const SEVERITY_COLORS = {
@@ -54,14 +55,42 @@ export default function DiagnosisDetailPage(){
 
      useEffect(() => {
           const loadDiagnosis = async () => {
-               const diagnosisId = Array.isArray(id) ? id[0] : id;
-               if(!diagnosisId){
-                    throw new Error('Invalid Diagnosis ID');
+               try{
+                    const diagnosisId = Array.isArray(id) ? id[0] : id;
+                    if(!diagnosisId){
+                         throw new Error('Invalid Diagnosis ID');
+                    }
+
+                    const data = await fetchPatientDiagnosis({params: {id: diagnosisId}});
+                    setDiagnosisDetail(data);
+                    setIsLoading(false);
+                    
+                    console.log(data.nodules);
+
+                    if(data.nodules && Array.isArray(data.nodules)){
+                         const boxes = data.nodules.map((nodule: Nodule) => {
+                              const [xCenter, yCenter, width, height] = nodule.position;
+                              return {
+                                   xCenter,
+                                   yCenter,
+                                   width,
+                                   height,
+                                   classId: 0,
+                                   className: "nodule",
+                                   confidence: nodule.confidence,
+                                   bbox: nodule.position,
+                                   severity: "mild",
+                                   isTemp:false,
+                                   notes: ""
+                              }
+                         });
+                         setBoundingBoxes(boxes);
+                    }
+               }
+               catch(error){
+                    console.error('Error:', error);
                }
 
-               const data = await fetchPatientDiagnosis({params: {id: diagnosisId}});
-               setDiagnosisDetail(data);
-               setIsLoading(false);
           }     
 
           loadDiagnosis();
@@ -205,10 +234,38 @@ export default function DiagnosisDetailPage(){
           
           // Save the changes to the database
 
-
-
           setEditable(false);
           setShowSaveDialog(false);
+          try{
+               fetch("http://127.0.0.1:8000/update-nodules",{
+                    method:'PUT',
+                    headers: {
+                         'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                         diagnosis_id: diagnosisDetail?.diagnosis_id,
+                         bounding_box_list: boundingBoxes.map(box => ({
+                              classId: 0,
+                              className: "nodule",
+                              confidence: box.confidence,
+                              xCenter: box.xCenter,
+                              yCenter: box.yCenter,
+                              width: box.width,
+                              height: box.height,
+                              isTemp: false,
+                              severity: box.severity,
+                              notes: box.notes
+                         }))
+                    })
+               })
+               .then(response => alert(response))
+
+
+          }
+          catch(error){
+               console.error('Error:', error);
+          }
+          
      };
 
      return (
@@ -246,8 +303,8 @@ export default function DiagnosisDetailPage(){
                                                   objectFit: 'contain',
                                                   cursor: editable ? 'crosshair' : 'default'
                                              }} 
-                                             src={"/ct_images/images/val/1_jpg.rf.4a59a63d0a7339d280dd18ef3c2e675a.jpg" }
-                                             // src={`${'http://127.0.0.1:8000/images/'+diagnosisDetail.photo_path.replace("uploads\\",'')}`} // if image is stored in the server
+                                             // src={"1_jpg.rf.4a59a63d0a7339d280dd18ef3c2e675a.jpg" }
+                                             src={`${'http://127.0.0.1:8000/images/'+diagnosisDetail.photo_path.replace("uploads\\",'')}`} // if image is stored in the server
                                              alt="CT Scan Image" 
                                         />
                                         <svg 
@@ -329,22 +386,7 @@ export default function DiagnosisDetailPage(){
 
                                              <CardContent>
                                              <div className="grid w-full items-center gap-4">
-                                                  {/* <div className="flex flex-col space-y-1.5">
-                                                       <Label htmlFor="patientName">Patient Name</Label>
-                                                       <Input readOnly id="patientName" value={`${diagnosisDetail.patient_first_name + " " + diagnosisDetail.patient_last_name}`}  />
-                                                  </div>
-
-                                                  <div className="flex flex-col space-y-1.5">
-                                                       <Label htmlFor="dateOfDiagnosis">Date of Dianosis</Label>
-                                                       <Input readOnly id="dateOfDiagnosis" value={`${diagnosisDetail.date}`}/>
-                                                  </div> */}
-
-                                                  {/* <div className="flex flex-col space-y-1.5">
-                                                       <Label htmlFor="diagnosisNote">Diagnosis Note</Label>
-                                                       <Input id="diagnosisNote" value={`${diagnosisDetail.diagnosisNote}`}/>
-                                                  </div> */}
-
-                                                  
+                                               
                                                   <div className="space-y-2">
                                                        <div className="flex items-center justify-between">
                                                             <h4 className="text-sm font-medium">Nodules ({boundingBoxes.length})</h4>
