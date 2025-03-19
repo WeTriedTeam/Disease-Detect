@@ -29,7 +29,9 @@ export default function DiagnosisDetailPage(){
 
      const {id} = useParams(); // Access dynamic param 'id'
 
- 
+     //   Manage editing history
+     const [history, setHistory] = useState<BoundingBox[][]>([]);
+     const [historyIndex, setHistoryIndex] = useState(-1);
         
      const [boundingBoxes, setBoundingBoxes] = useState<BoundingBox[]>([]);
      const [editable, setEditable] = useState(false);
@@ -107,6 +109,48 @@ export default function DiagnosisDetailPage(){
           loadDiagnosis();
      },[id]);
 
+     //   Add keyboard shortcuts for undo/redo
+     useEffect(() => {
+          const handleKeyDown = (e: KeyboardEvent) => {
+              if (!editable) return;
+              
+              if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                  if (e.shiftKey) {
+                      redo();
+                  } else {
+                      undo();
+                  }
+                  e.preventDefault();
+              }
+          };
+      
+          window.addEventListener('keydown', handleKeyDown);
+          return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [editable, historyIndex]);
+
+      useEffect(() => {
+          if (diagnosisDetail?.nodules) {
+              const initialBoxes = diagnosisDetail.nodules.map((nodule: Nodule) => {
+                  const [xCenter, yCenter, width, height] = nodule.position;
+                  return {
+                      xCenter,
+                      yCenter,
+                      width,
+                      height,
+                      classId: 0,
+                      className: "nodule",
+                      confidence: nodule.confidence,
+                      bbox: nodule.position,
+                      severity: "mild",
+                      isTemp: false,
+                      notes: ""
+                  };
+              });
+              setBoundingBoxes(initialBoxes);
+              saveToHistory(initialBoxes); // Save initial state to history
+          }
+      }, [diagnosisDetail]);
+
 
 
      //   Handle box resize
@@ -132,6 +176,29 @@ export default function DiagnosisDetailPage(){
               x: currentPoint.x - box.xCenter,
               y: currentPoint.y - box.yCenter
           });
+      };
+
+     //   Save state to history
+     const saveToHistory = (boxes: BoundingBox[]) => {
+          const newHistory = history.slice(0, historyIndex + 1);
+          newHistory.push(JSON.parse(JSON.stringify(boxes)));
+          setHistory(newHistory);
+          setHistoryIndex(newHistory.length - 1);
+      };
+  
+      // Add undo/redo functions
+      const undo = () => {
+          if (historyIndex > 0) {
+              setHistoryIndex(historyIndex - 1);
+              setBoundingBoxes(JSON.parse(JSON.stringify(history[historyIndex - 1])));
+          }
+      };
+  
+      const redo = () => {
+          if (historyIndex < history.length - 1) {
+              setHistoryIndex(historyIndex + 1);
+              setBoundingBoxes(JSON.parse(JSON.stringify(history[historyIndex + 1])));
+          }
       };
 
 
@@ -179,7 +246,7 @@ export default function DiagnosisDetailPage(){
                const newYCenter = Math.max(box.height/2, 
                    Math.min(1 - box.height/2, currentPoint.y - dragOffset.y));
        
-               // Update box position using transform for better performance
+               
                const updatedBox = {
                    ...box,
                    xCenter: newXCenter,
@@ -189,6 +256,8 @@ export default function DiagnosisDetailPage(){
                setBoundingBoxes(prev => prev.map((b, i) => 
                    i === draggingBoxIndex ? updatedBox : b
                ));
+
+               
            } else if (isResizing && resizingBoxIndex !== null && startPoint && resizeHandle) {
               const currentPoint = getMousePosition(event);
               const box = boundingBoxes[resizingBoxIndex];
@@ -249,6 +318,7 @@ export default function DiagnosisDetailPage(){
               setBoundingBoxes(prev => prev.map((b, i) => 
                   i === resizingBoxIndex ? updatedBox : b
               ));
+
           } else if (isDrawing && startPoint){
                if (!isDrawing || !startPoint || !editable) return;
                event.preventDefault();
@@ -298,11 +368,13 @@ export default function DiagnosisDetailPage(){
                setIsDragging(false);
                setDraggingBoxIndex(null);
                setDragOffset(null);
+               saveToHistory(boundingBoxes);
           }
           if(isResizing){
                setIsResizing(false);
                setResizeHandle(null);
                setResizingBoxIndex(null);
+               saveToHistory(boundingBoxes);
           }
 
           setIsDrawing(false);
@@ -321,25 +393,29 @@ export default function DiagnosisDetailPage(){
                }
                return boxes;
           });
+
+         
      };
 
      const deleteBox = (index: number, event: React.MouseEvent) => {
           event.preventDefault(); // Prevent form submission
           event.stopPropagation(); // Stop event bubbling
           
-          setBoundingBoxes(prevBoxes => 
-               prevBoxes.filter((_, i) => i !== index)
-          );
+          const newBoxes = boundingBoxes.filter((_, i) => i !== index);
+          setBoundingBoxes(newBoxes);
+          saveToHistory(newBoxes);
      };
 
       // Update box properties
       const updateBox = (index: number, updates: Partial<BoundingBox>) => {
-          setBoundingBoxes(prev => 
-               prev.map((box, i) => 
-                    i === index ? { ...box, ...updates } : box
-               )
-          );
+          const newBoxes = boundingBoxes.map((box, i) => 
+               i === index ? { ...box, ...updates } : box
+           );
+           setBoundingBoxes(newBoxes);
+           saveToHistory(newBoxes);
      };
+
+    
 
      // Save confirmation handler
      const handleSaveConfirm = () => {
@@ -386,6 +462,20 @@ export default function DiagnosisDetailPage(){
                     <div className="flex flex-row">
                          <h1 className="text-lg font-semibold md:text-2xl basis-2/6">Diagnosis Detail No.{diagnosisDetail?.diagnosis_id} </h1> 
                          <div className="basis-3/6"></div> 
+                         <Button 
+                         onClick={undo} 
+                         disabled={!editable || historyIndex <=1 }
+                         title="Undo (Ctrl+Z)"
+                    >
+                         Undo
+                    </Button>
+                    <Button 
+                         onClick={redo} 
+                         disabled={!editable || historyIndex >= history.length - 1}
+                         title="Redo (Ctrl+Shift+Z)"
+                    >
+                         Redo
+                    </Button>
                          <Button className="basis-1/6 justify-self-end" onClick={toggleEdit}>{editable ? 'Save Changes' : 'Edit' }</Button>
                     </div>
                     {/* <img id="ct-img" style={{display: 'block', width:'100%'}} src={`${'http://127.0.0.1:8000/images/'+diagnosisDetail.photo_path.replace("uploads\\",'')}`} alt="CT Scan Image" /> */}
