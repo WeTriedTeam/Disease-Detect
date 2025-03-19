@@ -42,6 +42,17 @@ export default function DiagnosisDetailPage(){
      const imageRef = useRef<HTMLDivElement>(null);
      const [isDrawing, setIsDrawing] = useState(false);
      const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
+
+     //   Resizing Boxes
+     const [isResizing, setIsResizing] = useState(false);
+     const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+     const [resizingBoxIndex, setResizingBoxIndex] = useState<number | null>(null);
+
+     //   Dragging Boxes
+     const [isDragging, setIsDragging] = useState(false);
+     const [draggingBoxIndex, setDraggingBoxIndex] = useState<number | null>(null);
+     const [dragOffset, setDragOffset] = useState<{x: number, y: number} | null>(null);
+
     
       // Hovering the nodule
       const [hoveredNoduleIndex, setHoveredNoduleIndex] = useState<number | null>(null);
@@ -98,26 +109,30 @@ export default function DiagnosisDetailPage(){
 
 
 
-     // useEffect(() => {
-     //      if (diagnosisDetail?.nodule_position) {
-     //           const boxes = diagnosisDetail.nodule_position.map((nodule) => ({
-     //               classId: nodule.classId,
-     //               className: nodule.className,
-     //               bbox: nodule.bbox,
-     //               confidence: nodule.confidence,
-     //               xCenter: nodule.bbox[0],
-     //               yCenter: nodule.bbox[1],
-     //               width: nodule.bbox[2],
-     //               height: nodule.bbox[3]
-     //           }));
-               
-     //           setBoundingBoxes(boxes.filter(box => 
-     //               box.xCenter !== undefined && 
-     //               box.yCenter !== undefined
-     //           ));
-     //       }                                                                                                             
-     //  }, [diagnosisDetail]);
+     //   Handle box resize
+     const handleResize = (event: React.MouseEvent, index: number, handle: string) => {
+          if (!editable) return;
+          event.stopPropagation();
+          setIsResizing(true);
+          setResizeHandle(handle);
+          setResizingBoxIndex(index);
+          setStartPoint(getMousePosition(event));
+      };
 
+     //   Handle box dragging
+     const handleDragStart = (event: React.MouseEvent, index: number) => {
+          if (!editable) return;
+          event.stopPropagation();
+          const box = boundingBoxes[index];
+          const currentPoint = getMousePosition(event);
+          
+          setIsDragging(true);
+          setDraggingBoxIndex(index);
+          setDragOffset({
+              x: currentPoint.x - box.xCenter,
+              y: currentPoint.y - box.yCenter
+          });
+      };
 
 
      //   Toggle Edit/Save
@@ -151,48 +166,145 @@ export default function DiagnosisDetailPage(){
      };
 
      const handleMouseMove = (event: React.MouseEvent) => {
-          if (!isDrawing || !startPoint || !editable) return;
+          if (!editable) return;
           event.preventDefault();
-          const currentPoint = getMousePosition(event);
-          
-          // Calculate dimensions from the start point
-          const width = Math.abs(currentPoint.x - startPoint.x);
-          const height = Math.abs(currentPoint.y - startPoint.y);
-          
-          // Calculate center point
-          const xCenter = Math.min(currentPoint.x, startPoint.x) + (width / 2);
-          const yCenter = Math.min(currentPoint.y, startPoint.y) + (height / 2);
 
-          // Create a temporary box
-          const tempBox: BoundingBox = {
-               xCenter,
-               yCenter,
-               width,
-               height,
-               classId: 0,
-               className: "nodule",
-               confidence: 1,
-               bbox: [xCenter, yCenter, width, height],
-               severity: 'mild',
-               isTemp: true,
-               notes: ""
-          };
+          if (isDragging && draggingBoxIndex !== null && dragOffset) {
+               const currentPoint = getMousePosition(event);
+               const box = boundingBoxes[draggingBoxIndex];
+               
+               // Calculate new center position
+               const newXCenter = Math.max(box.width/2, 
+                   Math.min(1 - box.width/2, currentPoint.x - dragOffset.x));
+               const newYCenter = Math.max(box.height/2, 
+                   Math.min(1 - box.height/2, currentPoint.y - dragOffset.y));
+       
+               // Update box position using transform for better performance
+               const updatedBox = {
+                   ...box,
+                   xCenter: newXCenter,
+                   yCenter: newYCenter
+               };
+       
+               setBoundingBoxes(prev => prev.map((b, i) => 
+                   i === draggingBoxIndex ? updatedBox : b
+               ));
+           } else if (isResizing && resizingBoxIndex !== null && startPoint && resizeHandle) {
+              const currentPoint = getMousePosition(event);
+              const box = boundingBoxes[resizingBoxIndex];
+              
+              let newWidth = box.width;
+              let newHeight = box.height;
+              let newXCenter = box.xCenter;
+              let newYCenter = box.yCenter;
+      
+              // Handle corner resizing
+              if (resizeHandle.length === 2) {
+                  const [vertical, horizontal] = resizeHandle.split('');
+                  
+                  // Horizontal resizing
+                  if (horizontal === 'e') {
+                      newWidth = Math.max(0.01, currentPoint.x - (box.xCenter - box.width/2));
+                  } else if (horizontal === 'w') {
+                      newWidth = Math.max(0.01, (box.xCenter + box.width/2) - currentPoint.x);
+                      newXCenter = currentPoint.x + newWidth/2;
+                  }
+                  
+                  // Vertical resizing
+                  if (vertical === 'n') {
+                      newHeight = Math.max(0.01, (box.yCenter + box.height/2) - currentPoint.y);
+                      newYCenter = currentPoint.y + newHeight/2;
+                  } else if (vertical === 's') {
+                      newHeight = Math.max(0.01, currentPoint.y - (box.yCenter - box.height/2));
+                  }
+              } else {
+                  // Original side handle logic
+                  switch (resizeHandle) {
+                      case 'e':
+                          newWidth = Math.max(0.01, currentPoint.x - (box.xCenter - box.width/2));
+                          break;
+                      case 'w':
+                          newWidth = Math.max(0.01, (box.xCenter + box.width/2) - currentPoint.x);
+                          newXCenter = currentPoint.x + newWidth/2;
+                          break;
+                      case 'n':
+                          newHeight = Math.max(0.01, (box.yCenter + box.height/2) - currentPoint.y);
+                          newYCenter = currentPoint.y + newHeight/2;
+                          break;
+                      case 's':
+                          newHeight = Math.max(0.01, currentPoint.y - (box.yCenter - box.height/2));
+                          break;
+                  }
+              }
+      
+              const updatedBox = {
+                  ...box,
+                  xCenter: newXCenter,
+                  yCenter: newYCenter,
+                  width: newWidth,
+                  height: newHeight,
+                  bbox: [newXCenter, newYCenter, newWidth, newHeight]
+              };
+      
+              setBoundingBoxes(prev => prev.map((b, i) => 
+                  i === resizingBoxIndex ? updatedBox : b
+              ));
+          } else if (isDrawing && startPoint){
+               if (!isDrawing || !startPoint || !editable) return;
+               event.preventDefault();
+               const currentPoint = getMousePosition(event);
+               
+               // Calculate dimensions from the start point
+               const width = Math.abs(currentPoint.x - startPoint.x);
+               const height = Math.abs(currentPoint.y - startPoint.y);
+               
+               // Calculate center point
+               const xCenter = Math.min(currentPoint.x, startPoint.x) + (width / 2);
+               const yCenter = Math.min(currentPoint.y, startPoint.y) + (height / 2);
 
-          setBoundingBoxes(prev => {
-               const boxes = [...prev];
-               if (boxes.length > 0 && boxes[boxes.length - 1].isTemp) {
-                    // Replace the temporary box
-                    boxes[boxes.length - 1] = tempBox;
-               } else {
-                    // Add new temporary box
-                    boxes.push(tempBox);
-               }
-               return boxes;
-          });
+               // Create a temporary box
+               const tempBox: BoundingBox = {
+                    xCenter,
+                    yCenter,
+                    width,
+                    height,
+                    classId: 0,
+                    className: "nodule",
+                    confidence: 1,
+                    bbox: [xCenter, yCenter, width, height],
+                    severity: 'mild',
+                    isTemp: true,
+                    notes: ""
+               };
+
+               setBoundingBoxes(prev => {
+                    const boxes = [...prev];
+                    if (boxes.length > 0 && boxes[boxes.length - 1].isTemp) {
+                         // Replace the temporary box
+                         boxes[boxes.length - 1] = tempBox;
+                    } else {
+                         // Add new temporary box
+                         boxes.push(tempBox);
+                    }
+                    return boxes;
+               });
+          }
      };
 
      const handleMouseUp = () => {
           if (!editable) return;
+
+          if(isDragging){
+               setIsDragging(false);
+               setDraggingBoxIndex(null);
+               setDragOffset(null);
+          }
+          if(isResizing){
+               setIsResizing(false);
+               setResizeHandle(null);
+               setResizingBoxIndex(null);
+          }
+
           setIsDrawing(false);
           setStartPoint(null);
           
@@ -340,9 +452,73 @@ export default function DiagnosisDetailPage(){
                                                                            strokeWidth={hoveredNoduleIndex === index ? "4" : "2"}
                                                                            fill={hoveredNoduleIndex === index ? `${SEVERITY_COLORS[box.severity as Severity || 'mild']}20` : "none"}
                                                                            style={{
-                                                                                transition: 'all 0.2s ease-in-out'
+                                                                                transition: isDragging ? 'none' : 'all 0.2s ease-out',
+                                                                                cursor: editable ? 'move' : 'pointer',
+                                                                                transform: `translate(0, 0)`, // Enable hardware acceleration
+                                                                                willChange: isDragging ? 'transform' : 'auto', // Optimize for animations
+                                                                                touchAction: 'none', // Prevent touch scrolling while dragging
                                                                            }}
+                                                                           onMouseDown={(e) => handleDragStart(e, index)}
                                                                       />
+                                                                           
+                                                                      {editable && (
+                                                                           <>
+                                                                                {/* Corner handles */}
+                                                                                {['nw', 'ne', 'sw', 'se'].map(corner => {
+                                                                                     const [vertical, horizontal] = corner.split('');
+                                                                                     const x = (box.xCenter + (horizontal === 'e' ? 1 : -1) * box.width/2) * 600;
+                                                                                     const y = (box.yCenter + (vertical === 's' ? 1 : -1) * box.height/2) * 600;
+                                                                                     
+                                                                                     return (
+                                                                                          <g key={corner}>
+                                                                                               <circle
+                                                                                               cx={x}
+                                                                                               cy={y}
+                                                                                               r="4"
+                                                                                               fill="white"
+                                                                                               stroke={SEVERITY_COLORS[box.severity as Severity || 'mild']}
+                                                                                               strokeWidth="2"
+                                                                                               style={{ 
+                                                                                                    cursor: `${corner}-resize`,
+                                                                                                    filter: 'drop-shadow(0 1px 2px rgb(0 0 0 / 0.2))',
+                                                                                               }}
+                                                                                               onMouseDown={(e) => handleResize(e, index, corner)}
+                                                                                               />
+                                                                                          </g>
+                                                                                     );
+                                                                                })}
+                                                                                
+                                                                                {/* Side handles */}
+                                                                                {['n', 's', 'e', 'w'].map(side => {
+                                                                                     let x = box.xCenter;
+                                                                                     let y = box.yCenter;
+                                                                                     
+                                                                                     if (side === 'e') x += box.width/2;
+                                                                                     if (side === 'w') x -= box.width/2;
+                                                                                     if (side === 'n') y -= box.height/2;
+                                                                                     if (side === 's') y += box.height/2;
+                                                                                     
+                                                                                     return (
+                                                                                          <g key={side}>
+                                                                                               <rect
+                                                                                               x={x * 600 - 3}
+                                                                                               y={y * 600 - 3}
+                                                                                               width="6"
+                                                                                               height="6"
+                                                                                               fill="white"
+                                                                                               stroke={SEVERITY_COLORS[box.severity as Severity || 'mild']}
+                                                                                               strokeWidth="2"
+                                                                                               style={{ 
+                                                                                                    cursor: `${side === 'n' || side === 's' ? 'ns' : 'ew'}-resize`,
+                                                                                                    filter: 'drop-shadow(0 1px 2px rgb(0 0 0 / 0.2))',
+                                                                                               }}
+                                                                                               onMouseDown={(e) => handleResize(e, index, side)}
+                                                                                               />
+                                                                                          </g>
+                                                                                     );
+                                                                                })}
+                                                                           </>
+                                                                           )}
                                                                  </g>
                                                             </TooltipTrigger>
                                                             <TooltipContent 
