@@ -65,6 +65,9 @@ export default function DiagnosisDetailPage(){
       // Show save dialog (Before saving changes)
       const [showSaveDialog, setShowSaveDialog] = useState(false);
 
+      //  Sucessfully saved changes
+      const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+
 
      useEffect(() => {
           const loadDiagnosis = async () => {
@@ -94,7 +97,7 @@ export default function DiagnosisDetailPage(){
                                    bbox: nodule.position,
                                    severity: "mild",
                                    isTemp:false,
-                                   notes: ""
+                                   doctor_note: nodule.doctor_note || ""
                               }
                          });
                          setBoundingBoxes(boxes);
@@ -141,9 +144,9 @@ export default function DiagnosisDetailPage(){
                       className: "nodule",
                       confidence: nodule.confidence,
                       bbox: nodule.position,
-                      severity: "mild",
+                      severity: nodule.severity || "mild",
                       isTemp: false,
-                      notes: ""
+                      doctor_note: nodule.doctor_note
                   };
               });
               setBoundingBoxes(initialBoxes);
@@ -344,7 +347,7 @@ export default function DiagnosisDetailPage(){
                     bbox: [xCenter, yCenter, width, height],
                     severity: 'mild',
                     isTemp: true,
-                    notes: ""
+                    doctor_note: ""
                };
 
                setBoundingBoxes(prev => {
@@ -422,6 +425,19 @@ export default function DiagnosisDetailPage(){
           
           // Save the changes to the database
 
+          console.log(boundingBoxes.map(box => ({
+               classId: 0,
+               className: "nodule",
+               confidence: box.confidence,
+               xCenter: box.xCenter,
+               yCenter: box.yCenter,
+               width: box.width,
+               height: box.height,
+               isTemp: false,
+               severity: box.severity,
+               notes: box.doctor_note
+          })));
+
           setEditable(false);
           setShowSaveDialog(false);
           try{
@@ -442,11 +458,20 @@ export default function DiagnosisDetailPage(){
                               height: box.height,
                               isTemp: false,
                               severity: box.severity,
-                              notes: box.notes
+                              doctor_note: box.doctor_note
                          }))
                     })
                })
-               .then(response => alert(response))
+               .then(response => {
+                    if(response.ok){
+                         setShowSaveSuccess(true);
+                         setTimeout(() => {
+                              setShowSaveSuccess(false);
+                         }
+                         , 2000);
+                    }
+               }
+               )
 
 
           }
@@ -469,6 +494,7 @@ export default function DiagnosisDetailPage(){
                     >
                          Undo
                     </Button>
+                    <div className="w-2"></div>
                     <Button 
                          onClick={redo} 
                          disabled={!editable || historyIndex >= history.length - 1}
@@ -476,6 +502,7 @@ export default function DiagnosisDetailPage(){
                     >
                          Redo
                     </Button>
+                    <div className="w-2"></div>
                          <Button className="basis-1/6 justify-self-end" onClick={toggleEdit}>{editable ? 'Save Changes' : 'Edit' }</Button>
                     </div>
                     {/* <img id="ct-img" style={{display: 'block', width:'100%'}} src={`${'http://127.0.0.1:8000/images/'+diagnosisDetail.photo_path.replace("uploads\\",'')}`} alt="CT Scan Image" /> */}
@@ -506,7 +533,7 @@ export default function DiagnosisDetailPage(){
                                                   cursor: editable ? 'crosshair' : 'default'
                                              }} 
                                              // src={"1_jpg.rf.4a59a63d0a7339d280dd18ef3c2e675a.jpg" }
-                                             src={`${'http://127.0.0.1:8000/images/'+diagnosisDetail.photo_path.replace("uploads\\",'')}`} // if image is stored in the server
+                                             src={`${'http://127.0.0.1:8000/images/' +diagnosisDetail.photo_path.replace(`uploads\\`,'')}`} // if image is stored in the server
                                              alt="CT Scan Image" 
                                         />
                                         <svg 
@@ -628,9 +655,9 @@ export default function DiagnosisDetailPage(){
                                                                                 {box.severity || 'mild'} severity
                                                                            </span>
                                                                       </div>
-                                                                      {box.notes && (
+                                                                      {box.doctor_note && (
                                                                            <div className="text-sm text-muted-foreground">
-                                                                                {box.notes}
+                                                                                {box.doctor_note}
                                                                            </div>
                                                                       )}
                                                                       <div className="text-xs text-muted-foreground">
@@ -751,8 +778,8 @@ export default function DiagnosisDetailPage(){
                                                                                                         <Label className="text-sm font-medium">Notes</Label>
                                                                                                         <textarea
                                                                                                              className="w-full p-2 border rounded mt-1 min-h-[80px]"
-                                                                                                             value={box.notes || ''}
-                                                                                                             onChange={(e) => updateBox(index, { notes: e.target.value })}
+                                                                                                             value={box.doctor_note || ''}
+                                                                                                             onChange={(e) => updateBox(index, { doctor_note: e.target.value })}
                                                                                                              disabled={!editable}
                                                                                                              placeholder="Add clinical observations..."
                                                                                                         />
@@ -819,6 +846,27 @@ export default function DiagnosisDetailPage(){
                     </div>
                </>) : (<>Loading...</>)}
 
+               {/* Save Success Dialog}*/}
+               <Dialog open={showSaveSuccess} onOpenChange={setShowSaveSuccess}>
+                    <DialogContent>
+                         <DialogHeader>
+                              <DialogTitle>Changes Saved</DialogTitle>
+                              <DialogDescription>
+                                   Your changes have been successfully saved.
+                              </DialogDescription>
+                         </DialogHeader>
+                         <DialogFooter className="flex gap-2 mt-4">
+                              <Button
+                                   variant="outline"
+                                   onClick={() => setShowSaveSuccess(false)}
+                              >
+                                   Close
+                              </Button>
+                         </DialogFooter>
+                    </DialogContent>
+               </Dialog>
+               
+
                {/* Save Confirmation Dialog */}
                <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
                     <DialogContent>
@@ -835,7 +883,7 @@ export default function DiagnosisDetailPage(){
                               <ul className="text-sm list-disc list-inside space-y-1">
                                    <li>Total nodules: {boundingBoxes.length}</li>
                                    <li>Modified nodules: {
-                                        boundingBoxes.filter(box => box.severity || box.notes).length
+                                        boundingBoxes.filter(box => box.severity || box.doctor_note).length
                                    }</li>
                               </ul>
                          </div>

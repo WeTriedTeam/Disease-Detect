@@ -10,5 +10,5 @@ export interface BoundingBox{
      height: number;
      isTemp: boolean;
      severity: string;
-     notes: string;
+     doctor_note: string;
 }
